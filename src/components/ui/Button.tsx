@@ -4,11 +4,12 @@ import React from 'react';
 import { motion, HTMLMotionProps } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 
-interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'className'> {
+interface ButtonProps extends Omit<HTMLMotionProps<'button'>, 'className' | 'children'> {
   variant?: 'primary' | 'secondary' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   className?: string;
+  children?: React.ReactNode;
 }
 
 export default function Button({

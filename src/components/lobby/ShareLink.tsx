@@ -88,7 +88,7 @@ export default function ShareLink({ roomId }: ShareLinkProps) {
             </AnimatePresence>
           </Button>
           
-          {typeof navigator !== 'undefined' && navigator.share && (
+          {typeof navigator !== 'undefined' && (
             <Button size="sm" variant="ghost" onClick={handleShare}>
               <Share className="w-4 h-4" />
             </Button>

@@ -11,10 +11,50 @@ interface PhotoSlotProps {
   owner: Owner;
   isActive: boolean;
   photo?: CapturedPhoto;
+  localStream: MediaStream | null;
+  remoteStream: MediaStream | null;
+  mirror: boolean;
+  role: 'host' | 'guest' | null;
   onRetake: () => void;
 }
 
-export default function PhotoSlot({ index, owner, isActive, photo, onRetake }: PhotoSlotProps) {
+// A simple helper component to attach a MediaStream to a video element
+function VideoFeed({ stream, mirror }: { stream: MediaStream | null; mirror: boolean }) {
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  
+  React.useEffect(() => {
+    if (videoRef.current && stream) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
+
+  if (!stream) {
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white/30 gap-1">
+        <Camera className="w-5 h-5" />
+        <span className="text-[10px] uppercase font-bold tracking-wider">Waiting...</span>
+      </div>
+    );
+  }
+
+  return (
+    <video
+      ref={videoRef}
+      autoPlay
+      playsInline
+      muted
+      className="w-full h-full object-cover"
+      style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
+    />
+  );
+}
+
+export default function PhotoSlot({ index, owner, isActive, photo, localStream, remoteStream, mirror, role, onRetake }: PhotoSlotProps) {
+  // Determine which stream to show
+  const isHost = role === 'host';
+  const isMyTurn = isHost ? owner === 'self' : owner === 'partner';
+  const streamToShow = isMyTurn ? localStream : remoteStream;
+  const shouldMirror = isMyTurn && mirror;
   return (
     <motion.div
       variants={captureVariants}
@@ -59,10 +99,12 @@ export default function PhotoSlot({ index, owner, isActive, photo, onRetake }: P
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center gap-1 text-white/30"
+            className="w-full h-full relative group/feed"
           >
-            <Camera className="w-5 h-5" />
-            <span className="text-[10px] uppercase font-bold tracking-wider">{owner === 'self' ? 'You' : 'Them'}</span>
+            <VideoFeed stream={streamToShow} mirror={shouldMirror} />
+            <div className="absolute top-2 left-2 bg-black/50 backdrop-blur px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold text-white/80 z-10 opacity-0 group-hover/feed:opacity-100 transition-opacity">
+              {owner === 'self' ? 'You' : 'Them'}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,8 +1,10 @@
+import type { Variants } from 'framer-motion';
+
 export const springs = {
-  gentle: { tension: 120, friction: 14 },
-  snappy: { tension: 300, friction: 20 },
-  bouncy: { tension: 200, friction: 10 },
-  molasses: { tension: 80, friction: 20 },
+  gentle: { stiffness: 120, damping: 14 },
+  snappy: { stiffness: 300, damping: 20 },
+  bouncy: { stiffness: 200, damping: 10 },
+  molasses: { stiffness: 80, damping: 20 },
 };
 
 export const pageVariants = {
@@ -12,22 +14,22 @@ export const pageVariants = {
   transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
 };
 
-export const staggerContainer = {
+export const staggerContainer: Variants = {
   animate: { transition: { staggerChildren: 0.08, delayChildren: 0.1 } },
 };
 
-export const staggerItem = {
+export const staggerItem: Variants = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
 };
 
-export const countdownVariants = {
+export const countdownVariants: Variants = {
   initial: { scale: 3, opacity: 0 },
   animate: { scale: 1, opacity: 1, transition: { type: 'spring', ...springs.bouncy } },
   exit: { scale: 0.5, opacity: 0, transition: { duration: 0.2 } },
 };
 
-export const captureVariants = {
+export const captureVariants: Variants = {
   idle: { scale: 1, borderColor: 'transparent' },
   active: { scale: 1.02, borderColor: 'var(--color-accent-primary)', boxShadow: '0 0 30px rgba(255,107,107,0.3)' },
   captured: { scale: [1, 1.05, 1], transition: { duration: 0.3 } },

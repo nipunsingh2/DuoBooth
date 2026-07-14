@@ -52,6 +52,10 @@ io.on('connection', (socket) => {
     io.in(roomId).emit('countdown-started', slotIndex);
   });
 
+  socket.on('start-sequence', ({ roomId }) => {
+    io.in(roomId).emit('sequence-started');
+  });
+
   socket.on('photo-captured', ({ roomId, slotIndex, photoDataUrl }) => {
     socket.to(roomId).emit('partner-photo', { slotIndex, photoDataUrl });
   });

@@ -28,6 +28,7 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
 
   const [count, setCount] = useState<number | null>(null);
   const [isFlashing, setIsFlashing] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   useEffect(() => {
     if (localVideoRef.current && localStream) {
@@ -41,124 +42,143 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
     }
   }, [remoteStream]);
 
-  // Handle countdown from server
-  useEffect(() => {
-    if (!socket) return;
-    
-    const handleCountdown = (slotIndex: number) => {
-      setActiveSlot(slotIndex);
-      let currentCount = COUNTDOWN_SECONDS;
-      setCount(currentCount);
-      
-      const interval = setInterval(() => {
-        currentCount -= 1;
-        if (currentCount >= 0) {
-          setCount(currentCount);
-        }
-        
-        if (currentCount === 0) {
-          clearInterval(interval);
-          handleCapture(slotIndex);
-          setTimeout(() => setCount(null), 1000); // Clear after flash
-        }
-      }, 1000);
-    };
-
-    socket.on('countdown-started', handleCountdown);
-    return () => {
-      socket.off('countdown-started', handleCountdown);
-    };
-  }, [socket, setActiveSlot]); // Removed handleCapture from deps to avoid stale closures
-
-  const handleCapture = (slotIndex: number) => {
+  const handleCapturePair = (slot1: number, slot2: number) => {
     if (!selectedLayout) return;
     
-    setIsFlashing(true);
-    // Play shutter sound if enabled
-    try {
-      const audio = new Audio('/sounds/shutter.mp3');
-      audio.play().catch(e => console.log('Audio play failed', e));
-    } catch(e) {}
-
-    setTimeout(() => setIsFlashing(false), 300);
-
-    const slot = selectedLayout.slots[slotIndex];
+    const slotsToCapture = [selectedLayout.slots[slot1]];
+    if (selectedLayout.slots[slot2]) {
+      slotsToCapture.push(selectedLayout.slots[slot2]);
+    }
     
-    // Determine whose turn it is natively
-    const isHost = role === 'host';
-    const isMyTurn = isHost ? slot.owner === 'self' : slot.owner === 'partner';
-
-    if (isMyTurn) {
-      const sourceVideo = localVideoRef.current;
+    slotsToCapture.forEach((slot, idx) => {
+      const actualSlotIndex = slot1 + idx;
+      const isHost = role === 'host';
+      const isMyTurn = isHost ? slot.owner === 'self' : slot.owner === 'partner';
       
-      if (sourceVideo && captureCanvasRef.current) {
-        const canvas = captureCanvasRef.current;
-        // High-res capture size based on video feed
-        canvas.width = sourceVideo.videoWidth || 1920;
-        canvas.height = sourceVideo.videoHeight || 1080;
-        const ctx = canvas.getContext('2d');
-        
-        if (ctx) {
-          if (mirror) {
-            ctx.translate(canvas.width, 0);
-            ctx.scale(-1, 1);
-          }
-          ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+      if (isMyTurn) {
+        const sourceVideo = localVideoRef.current;
+        if (sourceVideo && captureCanvasRef.current) {
+          const canvas = captureCanvasRef.current;
+          canvas.width = sourceVideo.videoWidth || 1920;
+          canvas.height = sourceVideo.videoHeight || 1080;
+          const ctx = canvas.getContext('2d');
           
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const imageUrl = URL.createObjectURL(blob);
-              addPhoto(slotIndex, { slotIndex, blob, imageUrl });
-              
-              if (socket) {
-                // Convert blob to base64 to send to partner
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = () => {
-                  socket.emit('photo-captured', { 
-                    roomId, 
-                    slotIndex, 
-                    photoDataUrl: reader.result 
-                  });
-                };
+          if (ctx) {
+            if (mirror) {
+              ctx.translate(canvas.width, 0);
+              ctx.scale(-1, 1);
+            }
+            ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+            
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const imageUrl = URL.createObjectURL(blob);
+                addPhoto(actualSlotIndex, { slotIndex: actualSlotIndex, blob, imageUrl });
+                
+                if (socket) {
+                  const reader = new FileReader();
+                  reader.readAsDataURL(blob);
+                  reader.onloadend = () => {
+                    socket.emit('photo-captured', { 
+                      roomId, 
+                      slotIndex: actualSlotIndex, 
+                      photoDataUrl: reader.result 
+                    });
+                  };
+                }
               }
-            }
-          }, 'image/jpeg', 0.95);
+            }, 'image/jpeg', 0.95);
+          }
+        }
+      } else {
+        // It's the partner's turn to capture. Take a temporary preview from remote video feed
+        const sourceVideo = remoteVideoRef.current;
+        if (sourceVideo && captureCanvasRef.current && remoteStream) {
+          const canvas = captureCanvasRef.current;
+          canvas.width = sourceVideo.videoWidth || 1280;
+          canvas.height = sourceVideo.videoHeight || 720;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const imageUrl = URL.createObjectURL(blob);
+                addPhoto(actualSlotIndex, { slotIndex: actualSlotIndex, blob, imageUrl });
+              }
+            }, 'image/jpeg', 0.5);
+          }
         }
       }
-    } else {
-      // It's the partner's turn to capture. We'll wait for the high quality 'partner-photo' event.
-      // We can capture a low-res preview from remoteVideoRef just to show something instantly
-      const sourceVideo = remoteVideoRef.current;
-      if (sourceVideo && captureCanvasRef.current && remoteStream) {
-        const canvas = captureCanvasRef.current;
-        canvas.width = sourceVideo.videoWidth || 1280;
-        canvas.height = sourceVideo.videoHeight || 720;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
-          canvas.toBlob((blob) => {
-            if (blob) {
-              const imageUrl = URL.createObjectURL(blob);
-              // Add a temporary preview photo (it will be overwritten when partner sends the real one)
-              addPhoto(slotIndex, { slotIndex, blob, imageUrl });
-            }
-          }, 'image/jpeg', 0.5);
-        }
-      }
-    }
-
-    // Move to next slot or finish
-    const nextSlot = slotIndex + 1;
-    if (nextSlot < selectedLayout.slots.length) {
-      setActiveSlot(nextSlot);
-    } else {
-      setTimeout(() => {
-        setPhase('review');
-        if (socket) socket.emit('phase-change', { roomId, phase: 'review' });
-      }, 1000);
-    }
+    });
   };
+
+  // Handle sequence from server
+  useEffect(() => {
+    if (!socket || !selectedLayout) return;
+    
+    // Check if we need to abort an ongoing run Sequence if component unmounts
+    let aborted = false;
+
+    const runSequence = async () => {
+      setIsCapturing(true);
+      
+      const numPairs = Math.ceil(selectedLayout.slots.length / 2);
+      
+      for (let i = 0; i < numPairs; i++) {
+        if (aborted) break;
+
+        const slot1 = i * 2;
+        const slot2 = i * 2 + 1;
+        
+        // Skip pairs that are already captured
+        const currentPhotos = useBoothStore.getState().photos;
+        if (currentPhotos[slot1] && (selectedLayout.slots[slot2] ? currentPhotos[slot2] : true)) {
+          continue;
+        }
+
+        setActiveSlot(slot1);
+        
+        // Countdown
+        for (let c = COUNTDOWN_SECONDS; c > 0; c--) {
+          if (aborted) break;
+          setCount(c);
+          await new Promise(r => setTimeout(r, 1000));
+        }
+        if (aborted) break;
+        
+        setCount(0);
+        handleCapturePair(slot1, slot2);
+        
+        setIsFlashing(true);
+        try {
+          const audio = new Audio('/sounds/shutter.mp3');
+          audio.play().catch(() => {});
+        } catch(e) {}
+        
+        setTimeout(() => setIsFlashing(false), 300);
+        setTimeout(() => setCount(null), 300);
+        
+        if (i < numPairs - 1) {
+          await new Promise(r => setTimeout(r, 2000));
+        } else {
+          await new Promise(r => setTimeout(r, 1500));
+          if (!aborted) {
+            setPhase('review');
+            socket.emit('phase-change', { roomId, phase: 'review' });
+          }
+        }
+      }
+      if (!aborted) {
+        setIsCapturing(false);
+      }
+    };
+
+    socket.on('sequence-started', runSequence);
+    return () => {
+      aborted = true;
+      socket.off('sequence-started', runSequence);
+    };
+  }, [socket, selectedLayout, role, mirror, remoteStream, addPhoto, setPhase, roomId, setActiveSlot]);
 
   // Listen for partner's photo
   useEffect(() => {
@@ -170,12 +190,6 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
         const blob = await res.blob();
         const imageUrl = URL.createObjectURL(blob);
         addPhoto(slotIndex, { slotIndex, blob, imageUrl });
-        
-        if (selectedLayout && slotIndex + 1 === selectedLayout.slots.length) {
-          setTimeout(() => {
-            setPhase('review');
-          }, 1000);
-        }
       } catch (err) {
         console.error('Failed to parse partner photo', err);
       }
@@ -185,87 +199,63 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
     return () => {
       socket.off('partner-photo', handlePartnerPhoto);
     };
-  }, [socket, addPhoto, selectedLayout, setPhase]);
+  }, [socket, addPhoto]);
 
   if (!selectedLayout) return null;
 
   return (
     <div className="w-full h-full flex flex-col lg:flex-row gap-6 p-4">
-      {/* Hidden canvas for high-res capture */}
-      <canvas ref={captureCanvasRef} className="hidden" />
+      {/* Visually hidden feeds for high-res capture (using opacity-0 instead of hidden to ensure browsers don't pause video decoding) */}
+      <canvas ref={captureCanvasRef} className="absolute opacity-0 pointer-events-none w-1 h-1" />
+      <video ref={localVideoRef} className="absolute opacity-0 pointer-events-none w-1 h-1" autoPlay playsInline muted />
+      <video ref={remoteVideoRef} className="absolute opacity-0 pointer-events-none w-1 h-1" autoPlay playsInline muted />
       
-      {/* Camera Feeds */}
-      <div className="flex-1 flex flex-col sm:flex-row gap-4">
-        {/* Local Feed */}
-        <div className="flex-1 relative bg-black rounded-2xl overflow-hidden border border-white/10 shadow-lg group">
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            className="w-full h-full object-cover"
-            style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
-          />
-          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur px-2 py-1 rounded text-xs text-white/80">You</div>
-        </div>
-        
-        {/* Remote Feed */}
-        <div className="flex-1 relative bg-black rounded-2xl overflow-hidden border border-white/10 shadow-lg">
-          {remoteStream ? (
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-white/40">
-              Waiting for partner video...
-            </div>
-          )}
-          <div className="absolute top-4 left-4 bg-black/50 backdrop-blur px-2 py-1 rounded text-xs text-white/80">Them</div>
+      {/* Main Grid Viewfinder */}
+      <div className="flex-1 flex items-center justify-center">
+        <div 
+          className="bg-black/50 backdrop-blur-sm rounded-2xl p-4 border border-white/10 shadow-2xl w-full max-w-[800px] flex items-center justify-center"
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${selectedLayout.cols}, 1fr)`,
+              gridTemplateRows: `repeat(${selectedLayout.rows}, 1fr)`,
+              gap: '16px',
+              width: '100%',
+              aspectRatio: selectedLayout.aspectRatio.replace(':', '/'),
+            }}
+          >
+            {selectedLayout.slots.map((slot, i) => (
+              <PhotoSlot 
+                key={i}
+                index={i}
+                owner={slot.owner}
+                isActive={isCapturing && (activeSlotIndex === i || activeSlotIndex + 1 === i)}
+                photo={photos[i]}
+                localStream={localStream}
+                remoteStream={remoteStream}
+                mirror={mirror}
+                role={role}
+                onRetake={() => {
+                  // Retakes during a sequence are ignored to keep flow simple
+                }}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
-      {/* Grid Overlay & Controls sidebar */}
-      <div className="w-full lg:w-80 flex flex-col gap-6">
-        <div className="bg-black/20 backdrop-blur-md rounded-2xl p-6 border border-white/10 flex-1 flex flex-col">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-bold">Session Progress</h3>
-            <span className="text-sm text-accent-primary font-medium bg-accent-primary/10 px-2 py-1 rounded">
-              {Object.keys(photos).length} / {selectedLayout.slots.length}
-            </span>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center">
-            <div 
-              className="bg-black/50 rounded-lg p-2 border border-white/10"
-              style={{
-                display: 'grid',
-                gridTemplateColumns: `repeat(${selectedLayout.cols}, 1fr)`,
-                gridTemplateRows: `repeat(${selectedLayout.rows}, 1fr)`,
-                gap: '8px',
-                width: '100%',
-                aspectRatio: selectedLayout.aspectRatio.replace(':', '/'),
-              }}
-            >
-              {selectedLayout.slots.map((slot, i) => (
-                <PhotoSlot 
-                  key={i}
-                  index={i}
-                  owner={slot.owner}
-                  isActive={activeSlotIndex === i}
-                  photo={photos[i]}
-                  onRetake={() => {
-                    setActiveSlot(i);
-                  }}
-                />
-              ))}
-            </div>
-          </div>
+      {/* Controls sidebar */}
+      <div className="w-full lg:w-80 flex flex-col gap-6 justify-center">
+        <div className="bg-black/20 backdrop-blur-md rounded-2xl p-6 border border-white/10 text-center">
+          <h3 className="font-bold text-xl mb-2">
+            {isCapturing ? 'Capturing...' : 'Ready?'}
+          </h3>
+          <p className="text-white/60 text-sm mb-6">
+            {isCapturing ? 'Strike a pose! The grid will fill automatically.' : 'Hit the camera to start the sequence. It will take pictures for both of you automatically.'}
+          </p>
+          <BoothControls socket={socket} roomId={roomId} isCapturing={isCapturing} />
         </div>
-
-        <BoothControls socket={socket} roomId={roomId} />
       </div>
 
       <CountdownOverlay count={count} />
