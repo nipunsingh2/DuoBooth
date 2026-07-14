@@ -19,6 +19,10 @@ import DeviceSelector from '@/components/lobby/DeviceSelector';
 import GridPicker from '@/components/booth/GridPicker';
 import CaptureView from '@/components/booth/CaptureView';
 
+// Export Components
+import ReviewGrid from '@/components/export/ReviewGrid';
+import ExportPanel from '@/components/export/ExportPanel';
+
 export default function BoothPage({ params }: { params: Promise<{ roomId: string }> }) {
   const { roomId } = use(params);
   
@@ -52,16 +56,27 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
         )}
 
         {phase === 'review' && (
-          <div className="text-white text-center">
-            <h2 className="text-3xl font-serif font-bold mb-4">Review Grid</h2>
-            <p className="text-gray-400">Review grid coming in next phase.</p>
+          <div className="w-full h-full flex flex-col lg:flex-row items-center justify-center gap-8">
+            <ReviewGrid onRetake={(index) => {
+              useBoothStore.getState().setActiveSlot(index);
+              useBoothStore.getState().setPhase('capture');
+              if (socket) socket.emit('phase-change', { roomId, phase: 'capture' });
+            }} />
+            <div className="w-full lg:w-auto flex justify-center">
+              <Button onClick={() => {
+                useBoothStore.getState().setPhase('export');
+                if (socket) socket.emit('phase-change', { roomId, phase: 'export' });
+              }} className="w-full max-w-sm">
+                Looks Good, Continue
+              </Button>
+            </div>
           </div>
         )}
 
         {phase === 'export' && (
-          <div className="text-white text-center">
-            <h2 className="text-3xl font-serif font-bold mb-4">Export</h2>
-            <p className="text-gray-400">Export coming in next phase.</p>
+          <div className="w-full h-full flex flex-col lg:flex-row items-center justify-center gap-12">
+            <ReviewGrid onRetake={() => {}} /> {/* Pass dummy function for export phase */}
+            <ExportPanel />
           </div>
         )}
       </PageTransition>
