@@ -5,7 +5,7 @@ import { useBoothStore } from '@/stores/boothStore';
 import { SIGNALING_SERVER_URL } from '@/lib/constants';
 import { gridLayouts } from '@/lib/gridLayouts';
 
-export function useSocket(roomId: string) {
+export function useSocket(roomId: string, isStreamReady: boolean) {
   const socketRef = useRef<Socket | null>(null);
   const { setSocketConnected, setPartnerReady, setRoomId, setRole, peerConnected } = useConnectionStore();
   const { setPhase, setActiveSlot, addPhoto, setLayout } = useBoothStore();
@@ -16,8 +16,6 @@ export function useSocket(roomId: string) {
 
     socket.on('connect', () => {
       setSocketConnected(true);
-      setRoomId(roomId);
-      socket.emit('join-room', roomId);
     });
 
     socket.on('disconnect', () => {
@@ -28,7 +26,7 @@ export function useSocket(roomId: string) {
       console.log('Joined room as:', data.role);
       setRole(data.role);
       if (data.role === 'guest') {
-        setPartnerReady(true); // The host is already there
+        setPartnerReady(true);
       }
     });
 
@@ -40,14 +38,11 @@ export function useSocket(roomId: string) {
     socket.on('partner-left', () => {
       console.log('Partner left');
       setPartnerReady(false);
-      // Wait, we might want to handle disconnection better.
     });
 
     socket.on('grid-selected', (layoutId) => {
       const layout = gridLayouts.find((l) => l.id === layoutId);
-      if (layout) {
-        setLayout(layout);
-      }
+      if (layout) setLayout(layout);
     });
 
     socket.on('phase-changed', (phase) => {
@@ -57,7 +52,14 @@ export function useSocket(roomId: string) {
     return () => {
       socket.disconnect();
     };
-  }, [roomId]);
+  }, [roomId, setSocketConnected, setRole, setPartnerReady, setLayout, setPhase]);
+
+  useEffect(() => {
+    if (isStreamReady && socketRef.current) {
+      setRoomId(roomId);
+      socketRef.current.emit('join-room', roomId);
+    }
+  }, [isStreamReady, roomId, setRoomId]);
 
   return socketRef.current;
 }

@@ -31,7 +31,7 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
   const { partnerReady, role } = useConnectionStore();
   
   const { stream: localStream, devices, videoRef } = useCamera();
-  const socket = useSocket(roomId);
+  const socket = useSocket(roomId, !!localStream);
   const pc = useWebRTC(roomId, socket, localStream);
 
   return (
