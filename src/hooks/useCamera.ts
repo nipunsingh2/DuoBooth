@@ -8,6 +8,8 @@ export function useCamera() {
   const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const [isRequesting, setIsRequesting] = useState(false);
+
   useEffect(() => {
     async function getDevices() {
       try {
@@ -17,54 +19,58 @@ export function useCamera() {
         console.error('Error getting devices:', err);
       }
     }
-    // Only get devices after stream is ready to avoid double prompting on mobile
     if (stream) {
       getDevices();
     }
   }, [stream]);
 
-  useEffect(() => {
-    let activeStream: MediaStream | null = null;
+  const startCamera = async () => {
+    setIsRequesting(true);
+    setError(null);
+    try {
+      let videoConstraints: any = {
+        width: resolution === 'ultra' ? { ideal: 3840 } : resolution === 'high' ? { ideal: 1920 } : { ideal: 1280 },
+        height: resolution === 'ultra' ? { ideal: 2160 } : resolution === 'high' ? { ideal: 1080 } : { ideal: 720 },
+      };
 
-    async function startCamera() {
-      try {
-        let videoConstraints: any = {
-          width: resolution === 'ultra' ? { ideal: 3840 } : resolution === 'high' ? { ideal: 1920 } : { ideal: 1280 },
-          height: resolution === 'ultra' ? { ideal: 2160 } : resolution === 'high' ? { ideal: 1080 } : { ideal: 720 },
-        };
-
-        if (deviceId) {
-          videoConstraints.deviceId = { exact: deviceId };
-        } else {
-          videoConstraints.facingMode = "user"; // Default to selfie cam on mobile
-        }
-
-        let newStream: MediaStream;
-        try {
-          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraints });
-        } catch (initialErr) {
-          console.warn('Failed with ideal constraints, falling back to basic camera access:', initialErr);
-          // Fallback for strict mobile browsers that reject resolution/facingMode constraints
-          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        }
-        
-        setStream(newStream);
-        activeStream = newStream;
-        setError(null);
-      } catch (err: any) {
-        console.error('Camera access error:', err);
-        setError(err.message || 'Could not access camera');
+      if (deviceId) {
+        videoConstraints.deviceId = { exact: deviceId };
+      } else {
+        videoConstraints.facingMode = "user";
       }
-    }
 
+      let newStream: MediaStream;
+      try {
+        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraints });
+      } catch (initialErr) {
+        console.warn('Failed with ideal constraints, falling back to basic camera access:', initialErr);
+        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      }
+      
+      setStream(newStream);
+    } catch (err: any) {
+      console.error('Camera access error:', err);
+      if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
+        setError(err.message || 'Camera permission denied or camera not found.');
+      } else {
+        setError('Click to request camera access');
+      }
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  useEffect(() => {
+    // Attempt auto-start, but it may fail silently on mobile without user gesture
+    // Catch it quickly so the user can tap the manual button
     startCamera();
 
     return () => {
-      if (activeStream) {
-        activeStream.getTracks().forEach((track) => track.stop());
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
       }
     };
   }, [deviceId, resolution]);
 
-  return { stream, error, devices, videoRef };
+  return { stream, error, devices, videoRef, startCamera, isRequesting };
 }

@@ -2,16 +2,20 @@
 
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { FlipHorizontal } from 'lucide-react';
+import { FlipHorizontal, Camera as CameraIcon, AlertCircle } from 'lucide-react';
 import GlassPanel from '@/components/ui/GlassPanel';
+import Button from '@/components/ui/Button';
 import { useSettingsStore } from '@/stores/settingsStore';
 
 interface CameraPreviewProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   stream: MediaStream | null;
+  error?: string | null;
+  isRequesting?: boolean;
+  onRetry?: () => void;
 }
 
-export default function CameraPreview({ videoRef, stream }: CameraPreviewProps) {
+export default function CameraPreview({ videoRef, stream, error, isRequesting, onRetry }: CameraPreviewProps) {
   const { mirror, setMirror } = useSettingsStore();
 
   useEffect(() => {
@@ -50,9 +54,28 @@ export default function CameraPreview({ videoRef, stream }: CameraPreviewProps) 
               className="w-full h-full object-cover rounded-xl transition-transform duration-300"
               style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
             />
+          ) : error ? (
+            <div className="w-full h-full bg-black/50 rounded-xl flex flex-col items-center justify-center text-center p-6 gap-4">
+              <AlertCircle className="w-8 h-8 text-red-400 opacity-80" />
+              <div>
+                <p className="font-medium text-red-400">{error}</p>
+                <p className="text-xs text-white/50 mt-1">Check your browser permissions and try again.</p>
+              </div>
+              {onRetry && (
+                <Button onClick={onRetry} disabled={isRequesting} className="mt-2">
+                  {isRequesting ? 'Requesting...' : 'Tap to Enable Camera'}
+                </Button>
+              )}
+            </div>
           ) : (
-            <div className="w-full h-full bg-black/50 rounded-xl flex items-center justify-center text-white/50 animate-pulse">
-              Requesting camera access...
+            <div className="w-full h-full bg-black/50 rounded-xl flex flex-col items-center justify-center text-white/50 gap-4">
+              <CameraIcon className="w-8 h-8 opacity-50 animate-pulse" />
+              {isRequesting ? 'Requesting camera access...' : 'Camera initializing...'}
+              {onRetry && !isRequesting && (
+                <Button onClick={onRetry} className="mt-2">
+                  Tap to Enable Camera
+                </Button>
+              )}
             </div>
           )}
 

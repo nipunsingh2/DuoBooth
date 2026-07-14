@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, RotateCcw } from 'lucide-react';
 import { CapturedPhoto, Owner } from '@/types';
 import { captureVariants } from '@/lib/animations';
+import { useBoothStore } from '@/stores/boothStore';
+import { IMAGE_FILTERS } from '@/lib/constants';
 
 interface PhotoSlotProps {
   index: number;
@@ -19,7 +21,7 @@ interface PhotoSlotProps {
 }
 
 // A simple helper component to attach a MediaStream to a video element
-function VideoFeed({ stream, mirror }: { stream: MediaStream | null; mirror: boolean }) {
+function VideoFeed({ stream, mirror, filterStyle }: { stream: MediaStream | null; mirror: boolean; filterStyle: string }) {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   
   React.useEffect(() => {
@@ -44,13 +46,17 @@ function VideoFeed({ stream, mirror }: { stream: MediaStream | null; mirror: boo
       playsInline
       muted
       className="w-full h-full object-cover"
-      style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
+      style={{ 
+        transform: mirror ? 'scaleX(-1)' : 'none',
+        filter: filterStyle
+      }}
     />
   );
 }
 
 export default function PhotoSlot({ index, owner, isActive, photo, localStream, remoteStream, mirror, role, onRetake }: PhotoSlotProps) {
   // Determine which stream to show
+  const { imageFilter } = useBoothStore();
   const isHost = role === 'host';
   const isMyTurn = isHost ? owner === 'self' : owner === 'partner';
   const streamToShow = isMyTurn ? localStream : remoteStream;
@@ -101,7 +107,7 @@ export default function PhotoSlot({ index, owner, isActive, photo, localStream, 
             exit={{ opacity: 0 }}
             className="w-full h-full relative group/feed"
           >
-            <VideoFeed stream={streamToShow} mirror={shouldMirror} />
+            <VideoFeed stream={streamToShow} mirror={shouldMirror} filterStyle={IMAGE_FILTERS[imageFilter]} />
             <div className="absolute top-2 left-2 bg-black/50 backdrop-blur px-2 py-1 rounded text-[10px] uppercase tracking-wider font-bold text-white/80 z-10 opacity-0 group-hover/feed:opacity-100 transition-opacity">
               {owner === 'self' ? 'You' : 'Them'}
             </div>

@@ -11,3 +11,11 @@ export const RESOLUTIONS = {
 
 export const EXPORT_FORMATS = ['png', 'jpeg', 'webp', 'pdf'] as const;
 export type ExportFormat = (typeof EXPORT_FORMATS)[number];
+
+export const IMAGE_FILTERS = {
+  normal: 'none',
+  grayscale: 'grayscale(100%)',
+  sepia: 'sepia(100%)',
+  vintage: 'sepia(50%) contrast(150%) saturate(120%) brightness(90%)',
+  'high-contrast': 'contrast(180%) saturate(120%)',
+};

@@ -6,7 +6,7 @@ import { Socket } from 'socket.io-client';
 import { useBoothStore } from '@/stores/boothStore';
 import { useConnectionStore } from '@/stores/connectionStore';
 import { useSettingsStore } from '@/stores/settingsStore';
-import { COUNTDOWN_SECONDS } from '@/lib/constants';
+import { COUNTDOWN_SECONDS, IMAGE_FILTERS } from '@/lib/constants';
 import PhotoSlot from './PhotoSlot';
 import BoothControls from './BoothControls';
 import CountdownOverlay from '@/components/ui/CountdownOverlay';
@@ -18,7 +18,7 @@ interface CaptureViewProps {
 }
 
 export default function CaptureView({ socket, roomId, localStream }: CaptureViewProps) {
-  const { selectedLayout, activeSlotIndex, setActiveSlot, addPhoto, photos, setPhase } = useBoothStore();
+  const { selectedLayout, activeSlotIndex, setActiveSlot, addPhoto, photos, setPhase, imageFilter } = useBoothStore();
   const { remoteStream, role } = useConnectionStore();
   const { mirror } = useSettingsStore();
   
@@ -64,11 +64,13 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
           const ctx = canvas.getContext('2d');
           
           if (ctx) {
+            ctx.filter = IMAGE_FILTERS[imageFilter] || 'none';
             if (mirror) {
               ctx.translate(canvas.width, 0);
               ctx.scale(-1, 1);
             }
             ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+            ctx.filter = 'none'; // reset
             
             canvas.toBlob((blob) => {
               if (blob) {
@@ -99,7 +101,9 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
           canvas.height = sourceVideo.videoHeight || 720;
           const ctx = canvas.getContext('2d');
           if (ctx) {
+            ctx.filter = IMAGE_FILTERS[imageFilter] || 'none';
             ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+            ctx.filter = 'none'; // reset
             canvas.toBlob((blob) => {
               if (blob) {
                 const imageUrl = URL.createObjectURL(blob);
@@ -178,7 +182,7 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
       aborted = true;
       socket.off('sequence-started', runSequence);
     };
-  }, [socket, selectedLayout, role, mirror, remoteStream, addPhoto, setPhase, roomId, setActiveSlot]);
+  }, [socket, selectedLayout, role, mirror, remoteStream, addPhoto, setPhase, roomId, setActiveSlot, imageFilter]);
 
   // Listen for partner's photo
   useEffect(() => {
@@ -264,11 +268,11 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
       <AnimatePresence>
         {isFlashing && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.8 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.15 }}
-            className="fixed inset-0 bg-white z-[60] pointer-events-none"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1, backgroundColor: '#ffffff' }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="fixed inset-0 z-[60] pointer-events-none mix-blend-screen shadow-[inset_0_0_150px_rgba(255,255,255,1)]"
           />
         )}
       </AnimatePresence>

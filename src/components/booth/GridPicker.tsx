@@ -7,6 +7,7 @@ import { gridLayouts } from '@/lib/gridLayouts';
 import { useBoothStore } from '@/stores/boothStore';
 import GlassPanel from '@/components/ui/GlassPanel';
 import { staggerContainer, staggerItem } from '@/lib/animations';
+import { IMAGE_FILTERS } from '@/lib/constants';
 
 interface GridPickerProps {
   socket: Socket | null;
@@ -14,7 +15,7 @@ interface GridPickerProps {
 }
 
 export default function GridPicker({ socket, roomId }: GridPickerProps) {
-  const { setLayout, setPhase } = useBoothStore();
+  const { setLayout, setPhase, imageFilter, setImageFilter } = useBoothStore();
 
   const handleSelect = (layoutId: string) => {
     const layout = gridLayouts.find((l) => l.id === layoutId);
@@ -45,6 +46,37 @@ export default function GridPicker({ socket, roomId }: GridPickerProps) {
           Select how you want to frame your moments together.
         </motion.p>
       </div>
+
+      {/* Filter Selection */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+        className="w-full flex flex-col items-center mb-12"
+      >
+        <h3 className="text-sm uppercase tracking-widest text-gray-400 mb-4 font-bold">Select a Filter</h3>
+        <div className="flex flex-wrap justify-center gap-3">
+          {(Object.keys(IMAGE_FILTERS) as Array<keyof typeof IMAGE_FILTERS>).map((filterKey) => (
+            <button
+              key={filterKey}
+              onClick={() => {
+                setImageFilter(filterKey);
+                // We don't emit this yet since we want both clients to see the same filter, 
+                // but for simplicity we will just let each person choose their own filter, or it applies locally.
+                // Wait, it's better if it applies locally so each person can have their own aesthetic, or we can broadcast it. 
+                // For a quick win, local filter is perfectly fine!
+              }}
+              className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                imageFilter === filterKey
+                  ? 'bg-accent-primary text-white shadow-[0_0_15px_rgba(var(--accent-primary-rgb),0.5)]'
+                  : 'bg-black/30 text-gray-400 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              {filterKey.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            </button>
+          ))}
+        </div>
+      </motion.div>
 
       <motion.div
         variants={staggerContainer}

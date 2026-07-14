@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Globe, Mail, Heart } from 'lucide-react';
+import { Heart, Github } from 'lucide-react';
 import { APP_NAME } from '@/lib/constants';
 
 export default function Footer() {
@@ -18,13 +18,9 @@ export default function Footer() {
           </div>
 
           <div className="flex items-center gap-4">
-            <a href="#" className="text-gray-400 hover:text-accent-primary transition-colors hover:scale-110 transform">
-              <Globe className="w-5 h-5" />
-              <span className="sr-only">Website</span>
-            </a>
-            <a href="#" className="text-gray-400 hover:text-white transition-colors hover:scale-110 transform">
-              <Mail className="w-5 h-5" />
-              <span className="sr-only">Contact</span>
+            <a href="https://github.com/nipunsingh2/DuoBooth" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors hover:scale-110 transform">
+              <Github className="w-5 h-5" />
+              <span className="sr-only">GitHub</span>
             </a>
           </div>
         </div>

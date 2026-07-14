@@ -30,7 +30,7 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
   const { phase } = useBoothStore();
   const { partnerReady, role } = useConnectionStore();
   
-  const { stream: localStream, devices, videoRef } = useCamera();
+  const { stream: localStream, devices, videoRef, error, startCamera, isRequesting } = useCamera();
   const socket = useSocket(roomId, !!localStream);
   const pc = useWebRTC(roomId, socket, localStream);
 
@@ -41,7 +41,13 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
       <PageTransition phaseKey={phase} className="max-w-7xl mx-auto w-full flex-1">
         {phase === 'lobby' && (
           <div className="w-full h-full flex flex-col items-center justify-center">
-            <CameraPreview videoRef={videoRef} stream={localStream} />
+            <CameraPreview 
+              videoRef={videoRef} 
+              stream={localStream} 
+              error={error} 
+              isRequesting={isRequesting} 
+              onRetry={startCamera} 
+            />
             <DeviceSelector devices={devices} />
             <ShareLink roomId={roomId} />
             <WaitingIndicator partnerReady={partnerReady} role={role} socket={socket} roomId={roomId} />

@@ -8,6 +8,7 @@ interface BoothState {
   activeSlotIndex: number;
   frameStyle: 'minimal' | 'polaroid' | 'film' | 'none';
   dateStampEnabled: boolean;
+  imageFilter: 'normal' | 'grayscale' | 'sepia' | 'vintage' | 'high-contrast';
   
   setPhase: (phase: BoothPhase) => void;
   setLayout: (layout: GridLayout | null) => void;
@@ -16,6 +17,7 @@ interface BoothState {
   setActiveSlot: (index: number) => void;
   setFrameStyle: (style: BoothState['frameStyle']) => void;
   setDateStamp: (enabled: boolean) => void;
+  setImageFilter: (filter: BoothState['imageFilter']) => void;
   resetBooth: () => void;
 }
 
@@ -26,6 +28,7 @@ export const useBoothStore = create<BoothState>((set) => ({
   activeSlotIndex: 0,
   frameStyle: 'polaroid',
   dateStampEnabled: true,
+  imageFilter: 'normal',
   
   setPhase: (phase) => set({ phase }),
   setLayout: (layout) => set({ selectedLayout: layout, photos: {}, activeSlotIndex: 0 }),
@@ -40,6 +43,7 @@ export const useBoothStore = create<BoothState>((set) => ({
   setActiveSlot: (index) => set({ activeSlotIndex: index }),
   setFrameStyle: (style) => set({ frameStyle: style }),
   setDateStamp: (enabled) => set({ dateStampEnabled: enabled }),
+  setImageFilter: (filter) => set({ imageFilter: filter }),
   resetBooth: () => set({ 
     phase: 'lobby', 
     selectedLayout: null, 
