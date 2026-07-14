@@ -11,31 +11,43 @@ export function useCamera() {
   useEffect(() => {
     async function getDevices() {
       try {
-        await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         const allDevices = await navigator.mediaDevices.enumerateDevices();
         setDevices(allDevices.filter((d) => d.kind === 'videoinput'));
       } catch (err) {
         console.error('Error getting devices:', err);
       }
     }
-    getDevices();
-  }, []);
+    // Only get devices after stream is ready to avoid double prompting on mobile
+    if (stream) {
+      getDevices();
+    }
+  }, [stream]);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
 
     async function startCamera() {
       try {
-        const constraints: MediaStreamConstraints = {
-          audio: true,
-          video: {
-            deviceId: deviceId ? { exact: deviceId } : undefined,
-            width: resolution === 'ultra' ? { ideal: 3840 } : resolution === 'high' ? { ideal: 1920 } : { ideal: 1280 },
-            height: resolution === 'ultra' ? { ideal: 2160 } : resolution === 'high' ? { ideal: 1080 } : { ideal: 720 },
-          },
+        let videoConstraints: any = {
+          width: resolution === 'ultra' ? { ideal: 3840 } : resolution === 'high' ? { ideal: 1920 } : { ideal: 1280 },
+          height: resolution === 'ultra' ? { ideal: 2160 } : resolution === 'high' ? { ideal: 1080 } : { ideal: 720 },
         };
 
-        const newStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (deviceId) {
+          videoConstraints.deviceId = { exact: deviceId };
+        } else {
+          videoConstraints.facingMode = "user"; // Default to selfie cam on mobile
+        }
+
+        let newStream: MediaStream;
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraints });
+        } catch (initialErr) {
+          console.warn('Failed with ideal constraints, falling back to basic camera access:', initialErr);
+          // Fallback for strict mobile browsers that reject resolution/facingMode constraints
+          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        }
+        
         setStream(newStream);
         activeStream = newStream;
         setError(null);
