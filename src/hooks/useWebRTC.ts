@@ -9,8 +9,29 @@ export function useWebRTC(roomId: string, socket: Socket | null, localStream: Me
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:open-relay.metered.ca:80' }
+        {
+          urls: "stun:stun.relay.metered.ca:80",
+        },
+        {
+          urls: "turn:global.relay.metered.ca:80",
+          username: "0e99f25de29c9b0a39034702",
+          credential: "gR8v+f5//XMJ6e1u",
+        },
+        {
+          urls: "turn:global.relay.metered.ca:80?transport=tcp",
+          username: "0e99f25de29c9b0a39034702",
+          credential: "gR8v+f5//XMJ6e1u",
+        },
+        {
+          urls: "turn:global.relay.metered.ca:443",
+          username: "0e99f25de29c9b0a39034702",
+          credential: "gR8v+f5//XMJ6e1u",
+        },
+        {
+          urls: "turns:global.relay.metered.ca:443?transport=tcp",
+          username: "0e99f25de29c9b0a39034702",
+          credential: "gR8v+f5//XMJ6e1u",
+        },
       ],
     });
 
