@@ -19,7 +19,7 @@ interface CaptureViewProps {
 
 export default function CaptureView({ socket, roomId, localStream }: CaptureViewProps) {
   const { selectedLayout, activeSlotIndex, setActiveSlot, addPhoto, photos, setPhase } = useBoothStore();
-  const { remoteStream } = useConnectionStore();
+  const { remoteStream, role } = useConnectionStore();
   const { mirror } = useSettingsStore();
   
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -83,41 +83,68 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
     setTimeout(() => setIsFlashing(false), 300);
 
     const slot = selectedLayout.slots[slotIndex];
-    const sourceVideo = slot.owner === 'self' ? localVideoRef.current : remoteVideoRef.current;
     
-    if (sourceVideo && captureCanvasRef.current) {
-      const canvas = captureCanvasRef.current;
-      // High-res capture size based on video feed
-      canvas.width = sourceVideo.videoWidth || 1920;
-      canvas.height = sourceVideo.videoHeight || 1080;
-      const ctx = canvas.getContext('2d');
+    // Determine whose turn it is natively
+    const isHost = role === 'host';
+    const isMyTurn = isHost ? slot.owner === 'self' : slot.owner === 'partner';
+
+    if (isMyTurn) {
+      const sourceVideo = localVideoRef.current;
       
-      if (ctx) {
-        if (slot.owner === 'self' && mirror) {
-          ctx.translate(canvas.width, 0);
-          ctx.scale(-1, 1);
-        }
-        ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+      if (sourceVideo && captureCanvasRef.current) {
+        const canvas = captureCanvasRef.current;
+        // High-res capture size based on video feed
+        canvas.width = sourceVideo.videoWidth || 1920;
+        canvas.height = sourceVideo.videoHeight || 1080;
+        const ctx = canvas.getContext('2d');
         
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const imageUrl = URL.createObjectURL(blob);
-            addPhoto(slotIndex, { slotIndex, blob, imageUrl });
-            
-            if (socket) {
-              // Convert blob to base64 to send to partner
-              const reader = new FileReader();
-              reader.readAsDataURL(blob);
-              reader.onloadend = () => {
-                socket.emit('photo-captured', { 
-                  roomId, 
-                  slotIndex, 
-                  photoDataUrl: reader.result 
-                });
-              };
-            }
+        if (ctx) {
+          if (mirror) {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
           }
-        }, 'image/jpeg', 0.95);
+          ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const imageUrl = URL.createObjectURL(blob);
+              addPhoto(slotIndex, { slotIndex, blob, imageUrl });
+              
+              if (socket) {
+                // Convert blob to base64 to send to partner
+                const reader = new FileReader();
+                reader.readAsDataURL(blob);
+                reader.onloadend = () => {
+                  socket.emit('photo-captured', { 
+                    roomId, 
+                    slotIndex, 
+                    photoDataUrl: reader.result 
+                  });
+                };
+              }
+            }
+          }, 'image/jpeg', 0.95);
+        }
+      }
+    } else {
+      // It's the partner's turn to capture. We'll wait for the high quality 'partner-photo' event.
+      // We can capture a low-res preview from remoteVideoRef just to show something instantly
+      const sourceVideo = remoteVideoRef.current;
+      if (sourceVideo && captureCanvasRef.current && remoteStream) {
+        const canvas = captureCanvasRef.current;
+        canvas.width = sourceVideo.videoWidth || 1280;
+        canvas.height = sourceVideo.videoHeight || 720;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(sourceVideo, 0, 0, canvas.width, canvas.height);
+          canvas.toBlob((blob) => {
+            if (blob) {
+              const imageUrl = URL.createObjectURL(blob);
+              // Add a temporary preview photo (it will be overwritten when partner sends the real one)
+              addPhoto(slotIndex, { slotIndex, blob, imageUrl });
+            }
+          }, 'image/jpeg', 0.5);
+        }
       }
     }
 
@@ -250,7 +277,7 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.8 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.15, exit: { duration: 0.3 } }}
+            transition={{ duration: 0.15 }}
             className="fixed inset-0 bg-white z-[60] pointer-events-none"
           />
         )}

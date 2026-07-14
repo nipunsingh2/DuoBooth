@@ -8,6 +8,7 @@ import { useBoothStore } from '@/stores/boothStore';
 import { useConnectionStore } from '@/stores/connectionStore';
 import AnimatedBackground from '@/components/ui/AnimatedBackground';
 import PageTransition from '@/components/ui/PageTransition';
+import Button from '@/components/ui/Button';
 
 // Lobby Components
 import CameraPreview from '@/components/lobby/CameraPreview';
@@ -27,7 +28,7 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
   const { roomId } = use(params);
   
   const { phase } = useBoothStore();
-  const { partnerReady } = useConnectionStore();
+  const { partnerReady, role } = useConnectionStore();
   
   const { stream: localStream, devices, videoRef } = useCamera();
   const socket = useSocket(roomId);
@@ -43,7 +44,7 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
             <CameraPreview videoRef={videoRef} stream={localStream} />
             <DeviceSelector devices={devices} />
             <ShareLink roomId={roomId} />
-            <WaitingIndicator partnerReady={partnerReady} />
+            <WaitingIndicator partnerReady={partnerReady} role={role} socket={socket} roomId={roomId} />
           </div>
         )}
 

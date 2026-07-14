@@ -3,11 +3,12 @@ import { io, Socket } from 'socket.io-client';
 import { useConnectionStore } from '@/stores/connectionStore';
 import { useBoothStore } from '@/stores/boothStore';
 import { SIGNALING_SERVER_URL } from '@/lib/constants';
+import { gridLayouts } from '@/lib/gridLayouts';
 
 export function useSocket(roomId: string) {
   const socketRef = useRef<Socket | null>(null);
-  const { setSocketConnected, setPartnerReady, setRoomId, peerConnected } = useConnectionStore();
-  const { setPhase, setActiveSlot, addPhoto } = useBoothStore();
+  const { setSocketConnected, setPartnerReady, setRoomId, setRole, peerConnected } = useConnectionStore();
+  const { setPhase, setActiveSlot, addPhoto, setLayout } = useBoothStore();
 
   useEffect(() => {
     const socket = io(SIGNALING_SERVER_URL);
@@ -25,6 +26,10 @@ export function useSocket(roomId: string) {
 
     socket.on('room-joined', (data) => {
       console.log('Joined room as:', data.role);
+      setRole(data.role);
+      if (data.role === 'guest') {
+        setPartnerReady(true); // The host is already there
+      }
     });
 
     socket.on('partner-joined', () => {
@@ -39,7 +44,10 @@ export function useSocket(roomId: string) {
     });
 
     socket.on('grid-selected', (layoutId) => {
-      // In a real app we'd fetch the layout by ID and set it
+      const layout = gridLayouts.find((l) => l.id === layoutId);
+      if (layout) {
+        setLayout(layout);
+      }
     });
 
     socket.on('phase-changed', (phase) => {

@@ -4,7 +4,7 @@ import { useConnectionStore } from '@/stores/connectionStore';
 
 export function useWebRTC(roomId: string, socket: Socket | null, localStream: MediaStream | null) {
   const pcRef = useRef<RTCPeerConnection | null>(null);
-  const { setPeerConnected, setRemoteStream, partnerReady } = useConnectionStore();
+  const { setPeerConnected, setRemoteStream, partnerReady, role } = useConnectionStore();
 
   const createPeerConnection = useCallback(() => {
     const pc = new RTCPeerConnection({
@@ -38,7 +38,7 @@ export function useWebRTC(roomId: string, socket: Socket | null, localStream: Me
   }, [socket, localStream, setRemoteStream, setPeerConnected]);
 
   useEffect(() => {
-    if (!socket || !partnerReady) return;
+    if (!socket || !partnerReady || role !== 'host') return;
 
     // As host, we create the offer
     const initiateCall = async () => {

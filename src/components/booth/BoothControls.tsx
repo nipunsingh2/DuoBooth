@@ -30,7 +30,7 @@ export default function BoothControls({ socket, roomId }: BoothControlsProps) {
     }
   };
 
-  const isComplete = selectedLayout && Object.keys(photos).length === selectedLayout.slots.length;
+  const isComplete = selectedLayout ? Object.keys(photos).length === selectedLayout.slots.length : false;
 
   return (
     <div className="flex justify-center items-center p-4">
