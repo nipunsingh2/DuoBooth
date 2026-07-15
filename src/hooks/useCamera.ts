@@ -28,10 +28,19 @@ export function useCamera() {
     setIsRequesting(true);
     setError(null);
     try {
-      let videoConstraints: any = {
-        width: resolution === 'ultra' ? { ideal: 3840 } : resolution === 'high' ? { ideal: 1920 } : { ideal: 1280 },
-        height: resolution === 'ultra' ? { ideal: 2160 } : resolution === 'high' ? { ideal: 1080 } : { ideal: 720 },
-      };
+      let videoConstraints: any = {};
+      const isPortrait = typeof window !== 'undefined' && window.innerHeight > window.innerWidth;
+      
+      const idealWidth = resolution === 'ultra' ? 3840 : resolution === 'high' ? 1920 : 1280;
+      const idealHeight = resolution === 'ultra' ? 2160 : resolution === 'high' ? 1080 : 720;
+      
+      if (isPortrait) {
+        videoConstraints.width = { ideal: idealHeight };
+        videoConstraints.height = { ideal: idealWidth };
+      } else {
+        videoConstraints.width = { ideal: idealWidth };
+        videoConstraints.height = { ideal: idealHeight };
+      }
 
       if (deviceId) {
         videoConstraints.deviceId = { exact: deviceId };
@@ -44,7 +53,8 @@ export function useCamera() {
         newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraints });
       } catch (initialErr) {
         console.warn('Failed with ideal constraints, falling back to basic camera access:', initialErr);
-        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        // Fallback explicitly to front camera for mobile Chrome compatibility
+        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
       }
       
       setStream(newStream);

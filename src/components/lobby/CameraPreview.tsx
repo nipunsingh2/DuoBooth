@@ -30,7 +30,7 @@ export default function CameraPreview({ videoRef, stream, error, isRequesting, o
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         transition={{ type: 'spring', damping: 20, stiffness: 100 }}
-        className="relative z-10 w-full max-w-2xl aspect-video"
+        className="relative z-10 w-full max-w-2xl aspect-[3/4] sm:aspect-[9/16] md:aspect-video"
       >
         <GlassPanel className="w-full h-full p-2 relative overflow-hidden group">
           {stream ? (
