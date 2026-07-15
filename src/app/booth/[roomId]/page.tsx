@@ -65,6 +65,7 @@ export default function BoothPage({ params }: { params: Promise<{ roomId: string
         {phase === 'review' && (
           <div className="w-full h-full flex flex-col lg:flex-row items-center justify-center gap-8">
             <ReviewGrid onRetake={(index) => {
+              useBoothStore.getState().removePhoto(index);
               useBoothStore.getState().setActiveSlot(index);
               useBoothStore.getState().setPhase('capture');
               if (socket) socket.emit('phase-change', { roomId, phase: 'capture' });

@@ -26,18 +26,6 @@ export default function CameraPreview({ videoRef, stream, error, isRequesting, o
 
   return (
     <div className="relative w-full h-full flex flex-col items-center justify-center">
-      {/* Blurred background */}
-      {stream && (
-        <video
-          autoPlay
-          playsInline
-          muted
-          ref={(el) => { if (el) el.srcObject = stream; }}
-          className="absolute inset-0 w-full h-full object-cover opacity-30 pointer-events-none"
-          style={{ filter: 'blur(40px) saturate(1.5)', transform: mirror ? 'scaleX(-1)' : 'none' }}
-        />
-      )}
-      
       <motion.div
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}

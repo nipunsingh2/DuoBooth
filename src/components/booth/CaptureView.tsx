@@ -45,13 +45,17 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
   const handleCapturePair = (slot1: number, slot2: number) => {
     if (!selectedLayout) return;
     
-    const slotsToCapture = [selectedLayout.slots[slot1]];
-    if (selectedLayout.slots[slot2]) {
-      slotsToCapture.push(selectedLayout.slots[slot2]);
+    const currentPhotos = useBoothStore.getState().photos;
+    const slotsToCapture: { slot: typeof selectedLayout.slots[0], index: number }[] = [];
+    
+    if (!currentPhotos[slot1]) {
+      slotsToCapture.push({ slot: selectedLayout.slots[slot1], index: slot1 });
+    }
+    if (selectedLayout.slots[slot2] && !currentPhotos[slot2]) {
+      slotsToCapture.push({ slot: selectedLayout.slots[slot2], index: slot2 });
     }
     
-    slotsToCapture.forEach((slot, idx) => {
-      const actualSlotIndex = slot1 + idx;
+    slotsToCapture.forEach(({ slot, index: actualSlotIndex }) => {
       const isHost = role === 'host';
       const isMyTurn = isHost ? slot.owner === 'self' : slot.owner === 'partner';
       
@@ -253,10 +257,10 @@ export default function CaptureView({ socket, roomId, localStream }: CaptureView
       <div className="w-full lg:w-80 flex flex-col gap-6 justify-center">
         <div className="bg-black/20 backdrop-blur-md rounded-2xl p-6 border border-white/10 text-center">
           <h3 className="font-bold text-xl mb-2">
-            {isCapturing ? 'Capturing...' : 'Ready?'}
+            {isCapturing ? 'Capturing...' : Object.keys(photos).length > 0 ? 'Ready for Retake?' : 'Ready?'}
           </h3>
           <p className="text-white/60 text-sm mb-6">
-            {isCapturing ? 'Strike a pose! The grid will fill automatically.' : 'Hit the camera to start the sequence. It will take pictures for both of you automatically.'}
+            {isCapturing ? 'Strike a pose! The grid will fill automatically.' : Object.keys(photos).length > 0 ? 'Hit the camera to capture this slot.' : 'Hit the camera to start the sequence. It will take pictures for both of you automatically.'}
           </p>
           <BoothControls socket={socket} roomId={roomId} isCapturing={isCapturing} />
         </div>

@@ -7,6 +7,7 @@ const io = new Server(httpServer, {
     origin: '*',
     methods: ['GET', 'POST'],
   },
+  maxHttpBufferSize: 1e7 // 10 MB limit for high-res images
 });
 
 const MAX_ROOM_SIZE = 2;
