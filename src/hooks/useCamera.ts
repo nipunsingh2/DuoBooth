@@ -52,16 +52,31 @@ export function useCamera() {
       try {
         newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraints });
       } catch (err1) {
-        console.warn('Failed with ideal constraints, trying facingMode...', err1);
+        console.warn('Failed with ideal constraints, trying 720p fallback...', err1);
         try {
-          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+          // Intermediate fallback: 720p
+          const fallbackWidth = isPortrait ? 720 : 1280;
+          const fallbackHeight = isPortrait ? 1280 : 720;
+          let fallbackConstraints: any = { 
+            width: { ideal: fallbackWidth }, 
+            height: { ideal: fallbackHeight }
+          };
+          if (deviceId) fallbackConstraints.deviceId = { exact: deviceId };
+          else fallbackConstraints.facingMode = "user";
+
+          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: fallbackConstraints });
         } catch (err2) {
-          console.warn('Failed with facingMode, trying basic video+audio...', err2);
+          console.warn('Failed with 720p constraints, trying facingMode...', err2);
           try {
-            newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
           } catch (err3) {
-            console.warn('Failed with audio+video, trying just video...', err3);
-            newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            console.warn('Failed with facingMode, trying basic video+audio...', err3);
+            try {
+              newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+            } catch (err4) {
+              console.warn('Failed with audio+video, trying just video...', err4);
+              newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            }
           }
         }
       }
