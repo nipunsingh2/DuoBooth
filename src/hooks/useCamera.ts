@@ -51,19 +51,31 @@ export function useCamera() {
       let newStream: MediaStream;
       try {
         newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: videoConstraints });
-      } catch (initialErr) {
-        console.warn('Failed with ideal constraints, falling back to basic camera access:', initialErr);
-        // Fallback explicitly to front camera for mobile Chrome compatibility
-        newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+      } catch (err1) {
+        console.warn('Failed with ideal constraints, trying facingMode...', err1);
+        try {
+          newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: { facingMode: "user" } });
+        } catch (err2) {
+          console.warn('Failed with facingMode, trying basic video+audio...', err2);
+          try {
+            newStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+          } catch (err3) {
+            console.warn('Failed with audio+video, trying just video...', err3);
+            newStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          }
+        }
       }
       
       setStream(newStream);
     } catch (err: any) {
       console.error('Camera access error:', err);
-      if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
-        setError(err.message || 'Camera permission denied or camera not found.');
+      const errDetail = err.message || err.name || 'Unknown error';
+      if (err.name === 'NotAllowedError') {
+        setError(`Permission denied. Check Android site settings. (${errDetail})`);
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found on this device.');
       } else {
-        setError('Click to request camera access');
+        setError(`Camera error: ${err.name} - ${errDetail}`);
       }
     } finally {
       setIsRequesting(false);
